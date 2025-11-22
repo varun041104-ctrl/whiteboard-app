@@ -1,5 +1,3 @@
-
-
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 import redis
@@ -22,7 +20,8 @@ except Exception as e:
     print(f"COULD NOT CONNECT TO REDIS at {redis_host}: {e}")
     r = None
 
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
 
 # --- State Snapshot ---
 STATE_KEY = "whiteboard_state"
