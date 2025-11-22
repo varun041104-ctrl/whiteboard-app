@@ -1,11 +1,11 @@
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 import redis
 import json
 import os
-
-import eventlet
-eventlet.monkey_patch()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'a-very-secret-key-change-this'
@@ -20,8 +20,7 @@ except Exception as e:
     print(f"COULD NOT CONNECT TO REDIS at {redis_host}: {e}")
     r = None
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
-
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # --- State Snapshot ---
 STATE_KEY = "whiteboard_state"
@@ -29,19 +28,19 @@ STATE_KEY = "whiteboard_state"
 def save_state(data):
     if r:
         try:
-            r.set(STATE_KEY, json.dumps(data))
+            # Append each draw action to a list
+            r.rpush(STATE_KEY, json.dumps(data))
         except Exception as e:
             print(f"Redis save_state error: {e}")
 
 def load_state():
     if r:
         try:
-            state = r.get(STATE_KEY)
-            if state:
-                return json.loads(state)
+            # Load the full list of draw actions
+            return [json.loads(x) for x in r.lrange(STATE_KEY, 0, -1)]
         except Exception as e:
             print(f"Redis load_state error: {e}")
-    return None
+    return []
 
 # --- Routes ---
 @app.route('/')
@@ -51,6 +50,7 @@ def index():
 # --- SocketIO Handlers ---
 @socketio.on('connect')
 def handle_connect():
+    # Send the full state to new clients
     state = load_state()
     if state:
         emit('sync_state', state)
@@ -59,7 +59,7 @@ def handle_connect():
 def handle_draw(data):
     # Broadcast locally
     emit('draw', data, broadcast=True)
-    # Publish to Redis
+    # Publish to Redis and save state
     if r:
         try:
             r.publish('whiteboard_channel', json.dumps(data))
@@ -83,7 +83,7 @@ def redis_listener():
 # --- Start App ---
 if __name__ == "__main__":
     print("Starting server...")
-    #if r:
-        #socketio.start_background_task(redis_listener)
+    if r:
+        socketio.start_background_task(redis_listener)
     port = int(os.environ.get('PORT', 5001))
     socketio.run(app, host="0.0.0.0", port=port)
