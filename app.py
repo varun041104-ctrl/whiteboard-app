@@ -1,11 +1,13 @@
-import eventlet
-eventlet.monkey_patch()
+
 
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 import redis
 import json
 import os
+
+import eventlet
+eventlet.monkey_patch()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'a-very-secret-key-change-this'
