@@ -83,7 +83,7 @@ def redis_listener():
 # --- Start App ---
 if __name__ == "__main__":
     print("Starting server...")
-    if r:
-        socketio.start_background_task(redis_listener)
+    #if r:
+        #socketio.start_background_task(redis_listener)
     port = int(os.environ.get('PORT', 5001))
     socketio.run(app, host="0.0.0.0", port=port)
