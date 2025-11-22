@@ -2,35 +2,101 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Distributed Whiteboard</title>
+    <title>Whiteboard</title>
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
     <style>
         html, body {
-            margin: 0; padding: 0;
-            height: 100%; overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
             background: #fff;
         }
-        #toolbar {
-            position: fixed; top: 10px; left: 10px;
-            background: #eee; padding: 8px;
-            border: 1px solid #ccc; border-radius: 4px;
-        }
-        #toolbar button { margin: 2px; }
         canvas {
             display: block;
-            width: 100vw; height: 100vh;
+            width: 100vw;
+            height: 100vh;
             cursor: crosshair;
         }
     </style>
 </head>
 <body>
-<div id="toolbar">
-    <button onclick="setTool('pen')">Pen</button>
-    <button onclick="setTool('line')">Line</button>
-    <button onclick="setTool('rect')">Rectangle</button>
-    <button onclick="setTool('text')">Text</button>
-</div>
 <canvas id="board"></canvas>
+
+<script>
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+
+    // --- THE FIX FOR YOUR CONNECTION ERROR ---
+    // We explicitly tell Socket.IO to use the current URL and try websockets first.
+    const socket = io(window.location.origin, {
+        transports: ["websocket", "polling"]
+    });
+
+    // Debugging: Verify connection in the console
+    socket.on("connect", () => {
+        console.log("✅ Successfully connected to server! ID:", socket.id);
+    });
+
+    socket.on("connect_error", (err) => {
+        console.error("❌ Connection failed:", err);
+    });
+    // -----------------------------------------
+
+    // Set the drawing area size to match the window
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Handle window resizing
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+
+    let drawing = false;
+    let lastX = 0, lastY = 0;
+
+    canvas.addEventListener('mousedown', e => {
+        drawing = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+    });
+
+    canvas.addEventListener('mouseup', () => drawing = false);
+    canvas.addEventListener('mousemove', draw);
+
+    function draw(event) {
+        if (!drawing) return;
+
+        const x = event.clientX;
+        const y = event.clientY;
+
+        // Draw locally
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Update last position
+        const data = { x, y, lastX, lastY };
+        lastX = x;
+        lastY = y;
+
+        // Send to server
+        socket.emit('draw', data);
+    }
+
+    // Listen for remote draws
+    socket.on('draw', data => {
+        ctx.beginPath();
+        ctx.moveTo(data.lastX, data.lastY);
+        ctx.lineTo(data.x, data.y);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    });
+</script>
 </body>
 </html>
