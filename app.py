@@ -11,7 +11,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'a-very-secret-key-change-this'
 
 # --- Redis Setup ---
-redis_host = os.environ.get('REDIS_HOST', 'redis-server')
+redis_host = os.environ.get('REDIS_HOST', 'localhost')
 try:
     r = redis.StrictRedis(host=redis_host, port=6379, decode_responses=True)
     r.ping()
